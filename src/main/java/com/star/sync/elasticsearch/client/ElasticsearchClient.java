@@ -4,6 +4,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -29,14 +30,30 @@ public class ElasticsearchClient implements DisposableBean {
     private String host;
     @Value("${elasticsearch.port}")
     private String port;
+    @Value("${elasticsearch.xpack}")
+    private boolean xpack;
+    @Value("${elasticsearch.userName}")
+    private String userName;
+    @Value("${elasticsearch.password}")
+    private String password;
+    @Value("${elasticsearch.sniff}")
+    private boolean sniff;
+
 
     @Bean
     public TransportClient getTransportClient() throws Exception {
-        Settings settings = Settings.builder().put("cluster.name", clusterName)
-                .put("client.transport.sniff", true)
-                .build();
-        transportClient = new PreBuiltTransportClient(settings)
-                .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(host), Integer.valueOf(port)));
+        if (xpack) {
+            transportClient = new PreBuiltXPackTransportClient(Settings.builder()
+                .put("cluster.name", clusterName)
+                .put("xpack.security.user", String.format("%s:%s", userName, password))
+                .put("client.transport.sniff", sniff)
+                .build());
+        } else {
+            transportClient = new PreBuiltTransportClient(Settings.builder().put("cluster.name", clusterName)
+                .put("client.transport.sniff", sniff)
+                .build());
+        }
+        transportClient.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(host), Integer.valueOf(port)));
         logger.info("elasticsearch transportClient 连接成功");
         return transportClient;
     }
